@@ -7,6 +7,9 @@ import sys, os, os400, time, traceback
 import codecs, itertools
 from datetime import date, timedelta
 
+DSTLIB = 'PYTHON27'
+DEBUG = False
+
 INCLUDE = ['/python27/source/include','/python27/source/python',
           '/python27/source/as400','/python27/source/modules/expat',
           '/python27/source/modules/zlib','/python27/source/bz2',
@@ -144,7 +147,7 @@ def compile(lib, modname, path, debug, tgtrls = '*CURRENT'):
     if os.system(cmd):
         os400.sndpgmmsg('*** F A I L E D ***')
 
-def create_srvpgm(srvpgm, lib = 'PYTHON27', tgtrls = '*CURRENT'):
+def create_srvpgm(srvpgm, lib = DSTLIB, tgtrls = '*CURRENT'):
     os400.sndpgmmsg('Creating *srvpgm %s/%s' % (lib, srvpgm))
     srvpgm = srvpgm.lower()
     if srvpgm not in SPGMDICT:
@@ -161,7 +164,7 @@ def create_srvpgm(srvpgm, lib = 'PYTHON27', tgtrls = '*CURRENT'):
     if os.system(cmd):
         os400.sndpgmmsg('*** F A I L E D ***')
 
-def create_pgm(lib = 'PYTHON27', tgtrls = '*CURRENT'):
+def create_pgm(lib = DSTLIB, tgtrls = '*CURRENT'):
     os400.sndpgmmsg('Creating *pgm %s/PYTHON' % lib)
     cmd = "CRTPGM PGM(%s/PYTHON) BNDSRVPGM(%s/PYTHON) " % (lib, lib) + \
           "ALWLIBUPD(*YES) USRPRF(*OWNER) TGTRLS(%s) " % tgtrls + \
@@ -179,7 +182,7 @@ def skip(dir, fn):
                 return True
     return False
 
-def create_module(dirname, filename = '', debug = False, tgtrls = '*CURRENT', lib = 'PYTHON27'):
+def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
     cmd = "chgenvvar envvar(INCLUDE) value('" + \
           ':'.join([dirname] + INCLUDE) + "')"
     os.system(cmd)
@@ -208,11 +211,11 @@ def create_module(dirname, filename = '', debug = False, tgtrls = '*CURRENT', li
             continue
         compile(lib, modname, os.path.join(dirname, fn), debug, tgtrls)
 
-def create_all(dirname, debug = False, tgtrls = '*CURRENT', lib = 'PYTHON27'):
+def create_all(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
     create_allmod(dirname, debug, tgtrls, lib)
     create_allpgm(tgtrls, lib)
 
-def create_allmod(dirname, debug = False, tgtrls = '*CURRENT', lib = 'PYTHON27'):
+def create_allmod(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
     create_module(os.path.join(dirname, 'python'), '', debug, tgtrls, lib)
     create_module(os.path.join(dirname, 'parser'), '', debug, tgtrls, lib)
     create_module(os.path.join(dirname, 'objects'), '', debug, tgtrls, lib)
@@ -228,7 +231,7 @@ def create_allmod(dirname, debug = False, tgtrls = '*CURRENT', lib = 'PYTHON27')
     create_module(os.path.join(dirname, 'bz2'), '', debug, tgtrls, lib)
     create_module(os.path.join(dirname, 'ibm_db'), '', debug, tgtrls, lib)
 
-def create_allpgm(tgtrls = '*CURRENT', lib = 'PYTHON27'):
+def create_allpgm(tgtrls = '*CURRENT', lib = DSTLIB):
     # create all srvpgm
     for srvpgm, parms in SPGM:
         create_srvpgm(srvpgm, lib, tgtrls)
