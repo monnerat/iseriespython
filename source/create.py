@@ -183,8 +183,8 @@ def skip(dir, fn):
     return False
 
 def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
-    cmd = "chgenvvar envvar(INCLUDE) value('" + \
-          ':'.join([dirname] + INCLUDE) + "')"
+    cmd = "ADDENVVAR ENVVAR(INCLUDE) REPLACE(*YES) VALUE('" + \
+          ':'.join(INCLUDE) + "')"
     os.system(cmd)
     debug = debug in (True, 'True', '1')
     dirname1 = os.path.split(dirname)[-1]
