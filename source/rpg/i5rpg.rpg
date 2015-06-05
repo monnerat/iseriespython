@@ -1,0 +1,133 @@
+H DATEDIT(*YMD) NOMAIN
+#***********************************************************
+D/copy qrpglesrc,i5rpg_pr
+#***********************************************************
+# Allcoate teraspace
+D TS_malloc       pr              *   extproc('_C_TS_malloc')
+D   size                        10u 0 value
+D TS_free         pr                  extproc('_C_TS_free')
+D   ptr                           *   value
+# Operational descriptor
+D ceedod          PR                  extproc('CEEDOD')
+D   position                    10I 0 const
+D   descType                    10I 0
+D   dataType                    10I 0
+D   descInfo1                   10I 0
+D   descInfo2                   10I 0
+D   length                      10I 0
+D   feedback                    12A   options(*omit)
+#***********************************************************
+#* global variables
+D descType        S             10I 0
+D dataType        S             10I 0
+D descInfo1       S             10I 0
+D descInfo2       S             10I 0
+D length          S             10I 0
+
+#***********************************************************
+#  Run python statement
+p runstatement    b                   Export
+D runstatement    pi            10i 0 opdesc
+D   ximpstr                    128    const
+D   xstmt                    65535    const options(*varsize)
+D   xretval                     64    const
+
+D tsMod           s               *
+D tsStmt          s               *
+D tsVar           s               *
+D result          s             10i 0
+
+    callp ceedod(2: descType: dataType: descInfo1: descInfo2: length: *omit)
+    eval tsMod = TS_malloc(128)
+    eval tsVar = TS_malloc(64)
+    eval tsStmt = TS_malloc(length + 1)
+    eval %str(tsMod: 128) = %trimr(ximpstr)
+    eval %str(tsVar: 64) = %trimr(xretval)
+    eval %str(tsStmt: length + 1) = xstmt
+    eval result = runstatement_t(tsMod: tsStmt: tsVar)
+    callp TS_free(tsMod)
+    callp TS_free(tsStmt)
+    callp TS_free(tsVar)
+    return result
+
+p runstatement    e
+#***********************************************************
+#  Run python Function
+p runpython       b                   Export
+D                 pi            10i 0
+D   xmodule                    100    const
+D   xcls                       100    const
+D   xfunc                      100    const
+D   xparms                      10i 0
+
+D tsMod           s               *
+D tsCls           s               *
+D tsFunc          s               *
+D result          s             10i 0
+
+    eval tsMod = TS_malloc(100)
+    eval tsCls  = TS_malloc(100)
+    eval tsFunc = TS_malloc(100)
+    eval %str(tsMod: 100) = %trimr(xmodule)
+    eval %str(tsCls: 100) = %trimr(xcls)
+    eval %str(tsFunc: 100) = %trimr(xfunc)
+    eval result = runpython_ts(tsMod: tsCls: tsFunc: xparms)
+    callp TS_free(tsMod)
+    callp TS_free(tsCls)
+    callp TS_free(tsFunc)
+    return result
+
+p runpython       e
+#***********************************************************
+#  Get object from dict
+p dictget         b                   Export
+D dictget         pi            10i 0 opdesc
+D   xhandle                     10i 0
+D   xkey                      2000    const options(*varsize)
+    #
+D  tsKey          s               *
+D  i              s             10i 0
+
+    callp ceedod(2: descType: dataType: descInfo1: descInfo2: length: *omit)
+    eval tsKey = TS_malloc(length + 1)
+    eval %str(tsKey: length + 1) = xkey
+    eval i = dictget_ts(xhandle: tsKey)
+    callp TS_free(tsKey)
+    return i
+
+p dictget         e
+#***********************************************************
+#  Add object to dict
+p dictadd         b                   Export
+D dictadd         pi                  opdesc
+D   xhandle                     10i 0
+D   xkey                      2000    const options(*varsize)
+D   xobj                        10i 0
+    #
+D  tsKey          s               *
+
+    callp ceedod(2: descType: dataType: descInfo1: descInfo2: length: *omit)
+    eval tsKey = TS_malloc(length + 1)
+    eval %str(tsKey: length + 1) = xkey
+    callp dictadd_ts(xhandle: tsKey: xobj)
+    callp TS_free(tsKey)
+
+p dictadd         e
+#***********************************************************
+#  Create new string
+p stringnew       b                   Export
+D stringnew       pi            10i 0 opdesc
+D   xstr                     65535    const options(*varsize)
+    #
+D  tsStr          s               *
+D  i              s             10i 0
+
+    callp ceedod(1: descType: dataType: descInfo1: descInfo2: length: *omit)
+    eval tsStr = TS_malloc(length + 1)
+    eval %str(tsStr: length + 1) = xstr
+    eval i = stringnew_ts(tsStr)
+    callp TS_free(tsStr)
+    return i
+
+p stringnew       e
+#***********************************************************

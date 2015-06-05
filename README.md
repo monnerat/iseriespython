@@ -1,2 +1,3 @@
-# iseriespython
-Fixes to iseriespython 2.7 revision E
+			Python 2.7 for iSeries
+
+See www.iseriespython.com.

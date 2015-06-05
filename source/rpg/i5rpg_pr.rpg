@@ -1,0 +1,104 @@
+ /IF DEFINED(I5RPG)
+ /EOF
+ /ENDIF
+ /DEFINE I5RPG
+#  Init python
+D initpython      pr                  extproc('initpython')
+#  Close python
+D closepython     pr                  extproc('closepython')
+#  run python
+D runpython       pr            10i 0 extproc('runpython')
+D   xmodule                    100    const
+D   xcls                       100    const
+D   xfunc                      100    const
+D   xparams                     10i 0
+#  run python ts
+D runpython_ts    pr            10i 0 extproc('runpython_ts')
+D   xmodule                       *   value options(*string)
+D   xclass                        *   value options(*string)
+D   xfunction                     *   value options(*string)
+D   xparams                     10i 0 value
+#  run python
+D runstatement    pr            10i 0 opdesc extproc('runstatement')
+D   xmodule                    128    const
+D   xstmt                    65535    const options(*varsize)
+D   xretval                     64    const
+#  run python
+D runstatement_t  pr            10i 0 extproc('runstatement_ts')
+D   xmodule                       *   value options(*string)
+D   xstmt                         *   value options(*string)
+D   xretval                       *   value options(*string)
+#  Get parameters
+D getparams       pr            10i 0 extproc('getparams')
+#  Set result
+D setresult       pr                  extproc('setresult')
+D   xhandle                     10i 0 value
+#  Set error
+D seterror        pr                  extproc('seterror')
+D   xhandle                     10i 0 value
+#  Create new dictionary
+D dictnew         pr            10i 0 extproc('dictnew')
+#  Get object from dictionary with xKey
+D dictget         pr            10i 0 opdesc extproc('dictget')
+D   xhandle                     10i 0
+D   xkey                      2000    const options(*varsize)
+#  Get object from dictionary with xKey
+D dictget_ts      pr            10i 0 extproc('dictget_ts')
+D   xhandle                     10i 0 value
+D   xKey                          *   value options(*string)
+#  Add object to dictionary
+D dictadd         pr                  opdesc extproc('dictadd')
+D   xhandle                     10i 0
+D   xkey                      2000    const options(*varsize)
+D   xobjhandle                  10i 0
+#  Add object to dictionary
+D dictadd_ts      pr                  extproc('dictadd_ts')
+D   xhandle                     10i 0 value
+D   xKey                          *   value options(*string)
+D   xobjhandle                  10i 0 value
+#  Get all keys of a dictionary as a list
+D dictkeys        pr            10i 0 extproc('dictkeys')
+D   xhandle                     10i 0 value
+#  Get type of handle return string (list/dict/string)
+D handletype      pr              *   extproc('handletype')
+D   xhandle                     10i 0 value
+#  Create new string
+D stringnew       pr            10i 0 opdesc extproc('stringnew')
+D   xstr                     65535    const options(*varsize)
+#  Create new string
+D stringnew_ts    pr            10i 0 extproc('stringnew_ts')
+D   xValue                        *   value options(*string)
+#  Get the raw buffer of a string
+D stringbuffer    pr              *   extproc('stringbuffer')
+D   xhandle                     10i 0 value
+#  Return length of string
+D stringlen       pr            10i 0 extproc('stringlen')
+D   xhandle                     10i 0 value
+#  Return string as a string (convert from utf to job ccsid)
+D stringget       pr              *   extproc('stringget')
+D   xhandle                     10i 0 value
+#  Create new list
+D listnew         pr            10i 0 extproc('listnew')
+#  Return length of list
+D listlen         pr            10i 0 extproc('listlen')
+D   xhandle                     10i 0 value
+#  Get object from list
+D listget         pr            10i 0 extproc('listget')
+D   xhandle                     10i 0 value
+D   xpos                        10i 0 value
+#  Add object to list
+D listadd         pr                  extproc('listadd')
+D   xhandle                     10i 0 value
+D   xobjhandle                  10i 0 value
+#  Create new integer
+D intnew          pr            10i 0 extproc('intnew')
+D   xValue                      10i 0 value
+#  Get integer
+D intget          pr            10i 0 extproc('intget')
+D   xhandle                     10i 0 value
+#  Create new float
+D floatnew        pr            10i 0 extproc('floatnew')
+D   xValue                       8F   value
+#  Get float
+D floatget        pr             8F   extproc('floatget')
+D   xhandle                     10i 0 value

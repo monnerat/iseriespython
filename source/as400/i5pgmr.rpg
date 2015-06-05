@@ -1,0 +1,108 @@
+1	     H DATEDIT(*YMD) NOMAIN
+2	      ************************************************************
+3	     D/copy cmsrc,i5pgm_pr
+4	      ************************************************************
+5	      * Allcoate teraspace
+6	     D TS_malloc       pr              *   extproc('_C_TS_malloc')
+7	     D   size                        10u 0 value
+8	     D TS_free         pr                  extproc('_C_TS_free')
+9	     D   ptr                           *   value
+10	      ************************************************************
+11	      *  Run python statement
+12	     p runstatement    b                   Export
+13	     D                 pi            10i 0
+14	     D   xmodule                    100    const
+15	     D   xstmt                     1024    const
+16	
+17	     D tsMod           s               *
+18	     D tsStmt          s               *
+19	     D result          s             10i 0
+20	
+21	     C                   eval      tsMod = TS_malloc(100)                                           
+22	     C                   eval      tsStmt = TS_malloc(1024)                                         
+23	     C                   eval      %str(tsMod: 100) = %trimr(xmodule)                               
+24	     C                   eval      %str(tsStmt: 100) = %trimr(xstmt)                                
+25	     C                   eval      result = runstatement_t(tsMod: tsStmt)                           
+26	     C                   callp     TS_free(tsMod)                                                   
+27	     C                   callp     TS_free(tsStmt)                                                  
+28	     C                   return    result                                                           
+29	
+30	     p runstatement    e
+31	      ************************************************************
+32	      *  Run python Function
+33	     p runpython       b                   Export
+34	     D                 pi            10i 0
+35	     D   xmodule                    100    const
+36	     D   xcls                       100    const
+37	     D   xfunc                      100    const
+38	     D   xparms                      10i 0 const
+39	
+40	     D tsMod           s               *
+41	     D tsCls           s               *
+42	     D tsFunc          s               *
+43	     D result          s             10i 0
+44	
+45	     C                   eval      tsMod = TS_malloc(100)                                           
+46	     C                   eval      tsCls  = TS_malloc(100)                                          
+47	     C                   eval      tsFunc = TS_malloc(100)                                          
+48	     C                   eval      %str(tsMod: 100) = %trimr(xmodule)                               
+49	     C                   eval      %str(tsCls: 100) = %trimr(xcls)                                  
+50	     C                   eval      %str(tsFunc: 100) = %trimr(xfunc)                                
+51	     C                   eval      result = runpython_ts(tsMod: tsCls: tsFunc:                      
+     C                             xparms)
+52	     C                   callp     TS_free(tsMod)                                                   
+53	     C                   callp     TS_free(tsCls)                                                   
+54	     C                   callp     TS_free(tsFunc)                                                  
+55	     C                   return    result                                                           
+56	
+57	     p runpython       e
+58	      ************************************************************
+59	      *  Get object from dict
+60	     p dictget         b                   Export
+61	     D                 pi            10i 0
+62	     D   xhandle                     10i 0 const
+63	     D   xkey                      2000    const
+64	      *
+65	     D  tsKey          s               *
+66	     D  i              s             10i 0
+67	
+68	     C                   eval      tsKey = TS_malloc(2000)                                          
+69	     C                   eval      %str(tsKey: 2000) = %trimr(xkey)                                 
+70	     C                   eval      i = dictget_ts(xhandle: tsKey)                                   
+71	     C                   callp     TS_free(tsKey)                                                   
+72	     C                   return    i                                                                
+73	
+74	     p dictget         e
+75	      ************************************************************
+76	      *  Add object to dict
+77	     p dictadd         b                   Export
+78	     D                 pi
+79	     D   xhandle                     10i 0 const
+80	     D   xkey                      2000    const
+81	     D   xobj                        10i 0 const
+82	      *
+83	     D  tsKey          s               *
+84	
+85	     C                   eval      tsKey = TS_malloc(2000)                                          
+86	     C                   eval      %str(tsKey: 2000) = %trimr(xkey)                                 
+87	     C                   callp     dictadd_ts(xhandle: tsKey: xobj)                                 
+88	     C                   callp     TS_free(tsKey)                                                   
+89	
+90	     p dictadd         e
+91	      ************************************************************
+92	      *  Create new string
+93	     p stringnew       b                   Export
+94	     D                 pi            10i 0
+95	     D   xstr                     32000    const
+96	      *
+97	     D  tsStr          s               *
+98	     D  i              s             10i 0
+99	
+100	     C                   eval      tsStr = TS_malloc(32000)                                         
+101	     C                   eval      %str(tsStr: 32000) = %trimr(xstr)                                
+102	     C                   eval      i = stringnew_ts(tsStr)                                          
+103	     C                   callp     TS_free(tsStr)                                                   
+104	     C                   return    i                                                                
+105	
+106	     p stringnew       e
+107	      ************************************************************
