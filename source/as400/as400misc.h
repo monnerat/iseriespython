@@ -25,6 +25,7 @@ extern DL_IMPORT(char *) packedtostr(char *buf, char *p, int digits, int dec, ch
 extern DL_IMPORT(char *) getenv_as(const char *);
 extern DL_IMPORT(char *) getpythonpath(void);
 extern DL_IMPORT(char *) getpythonhome(void);
+extern DL_IMPORT(char *) getpgmqname(void);
 extern DL_IMPORT(_SYSPTR) getPgm(char *name, char *lib);
 extern DL_IMPORT(int) getSrvpgm(char *name, char *lib);
 extern DL_IMPORT(_SYSPTR) getFunction(int actmark, char *name);

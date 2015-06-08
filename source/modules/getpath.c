@@ -400,15 +400,23 @@ calculate_path(void)
     char *ptr;
     char *buf;
     size_t bufsz;
+    size_t i;
     /* prefix and exec_prefix  */
     strncpy(prefix, home, MAXPATHLEN);
     strncpy(exec_prefix, home, MAXPATHLEN);
     /* proglib */
     ptr = strchr(prog, SEP);
-    strncpy(proglib, prog, ptr - prog);
-    proglib[10] = '\0';
-    strncpy(progobjname, ptr + 1, 10);
-    progobjname[10] = '\0';
+    if (!ptr) {
+        prog = getpgmqname();
+        ptr = strchr(prog, SEP);
+    }
+    i = ptr? ptr - prog: strlen(prog);
+    memset(proglib, 0, sizeof proglib);
+    strncpy(proglib, prog, i < 10? i: 10);
+    ptr = ptr? ptr + 1: prog;
+    i = strlen(ptr);
+    memset(progobjname, 0, sizeof proglib);
+    strncpy(progobjname, ptr, i < 10? i: 10);
     /* progpath  */
     sprintf(progpath, "/qsys.lib/%s.lib/%s.pgm", proglib, progobjname); 
     for (ptr = progpath; *ptr; ptr++)

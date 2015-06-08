@@ -34,6 +34,7 @@
 #include <qusec.h>
 #include <qmhchgem.h>
 #include <qwcrdtaa.h>
+#include <qwvrcstk.h>
 #include <iconv.h>
 #include <qtqiconv.h>
 #include <miptrnam.h>
@@ -607,6 +608,51 @@ getpythonhome(void)
         return pyhome;
     }
     return "/python27";
+}
+
+/* Get current pgm/srvpgm library and name. */
+char *
+getpgmqname(void)
+{
+    static char pgmqname[22];
+    Qus_EC_t error;
+    Qwv_RCSTK_Entry_t *curframe;
+    Qwc_JIDF0100_t jobid;
+    char cstkfmt[9];
+    char jidffmt[9];
+    char *ip, *op;
+    char cstkbuf[1024];
+    Qwv_CSTK0100_t *cstk = (Qwv_CSTK0100_t *) cstkbuf;
+
+    memset(jobid.Job_Name, ' ', sizeof jobid.Job_Name);
+    jobid.Job_Name[0] = '*';
+    memset(jobid.User_Name, ' ', sizeof jobid.User_Name);
+    memset(jobid.Job_Number, ' ', sizeof jobid.Job_Number);
+    memset(jobid.Int_Job_ID, ' ', sizeof jobid.Int_Job_ID);
+    utfToStrLen((char *) &jobid, (char *) &jobid, sizeof jobid, 0);
+    memset((char *) jobid.Reserved, 0, sizeof jobid.Reserved);
+    jobid.Thread_Indicator = 1;
+    memset((char *) jobid.Thread_Id, 0, sizeof jobid.Thread_Id);
+    utfToStr("CSTK0100", cstkfmt);
+    utfToStr("JIDF0100", jidffmt);
+    error.Bytes_Provided = sizeof error;
+    QWVRCSTK(cstk, sizeof cstkbuf, cstkfmt, &jobid, jidffmt, &error);
+
+    if (error.Bytes_Available || !cstk->Bytes_Available)
+        return "";
+
+    curframe = (Qwv_RCSTK_Entry_t *) ((char *) cstk + cstk->Entry_Offset);
+    memcpy(pgmqname, curframe->Program_Library, 10);
+    memcpy(pgmqname + 11, curframe->Program_Name, 10);
+    strLenToUtf(pgmqname, 21, pgmqname);
+    pgmqname[10] = '/';
+    pgmqname[21] = '\0';
+    ip = op = pgmqname;
+    do {
+        if (*ip++ != ' ')
+            *op++ = ip[-1];
+    } while (op[-1]);
+    return pgmqname;
 }
 
 /* resolve program object */
