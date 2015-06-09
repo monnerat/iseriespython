@@ -5,6 +5,8 @@
 #****************************************************************************
 import sys, os, os400, time, traceback
 import codecs, itertools
+import shutil
+import re
 from datetime import date, timedelta
 
 DSTLIB = 'PYTHON27'
@@ -130,6 +132,42 @@ SPGM = [('python'    , ([],['abstract','acceler','asdl','ast','as400misc','bitse
 
 SPGMDICT = dict((x[0],x[1]) for x in SPGM)
 
+HDRS = [('include', []),
+        ('as400', ['as400misc.h']),
+       ]
+
+INCLUDE_RE = re.compile('^(#\s*include\s+")([^"/]*)(\.h".*)$')
+
+def mangledb(name):
+    if name.startswith('_'):
+        name = 'Z' + name[1:]
+    name = name.replace('-', '').replace('_', '')[:10]
+    return name
+
+def install_header(lib, dstpath, srcpath, file):
+    os400.sndpgmmsg('Installing header file %s/%s' % (srcpath, file))
+    shutil.copy2(srcpath + "/" + file, dstpath + "/include/" + file)
+    mbrname = mangledb(os.path.splitext(file)[0]).upper()
+    ofile = open("/QSYS.LIB/%s.LIB/H.FILE/%s.MBR" % (lib, mbrname), 'w')
+    with open(srcpath + "/" + file, 'r') as ifile:
+        for line in ifile:
+            m = INCLUDE_RE.match(line)
+            if (m):
+                line = m.group(1) + mangledb(m.group(2)) + m.group(3) + '\n'
+            ofile.write(line)
+    ofile.close()
+
+def install_allheaders(dirname, targetdir = None, lib = DSTLIB):
+    if not targetdir:
+        targetdir = dirname
+    for subdir, files in HDRS:
+        if files == []:
+            for fn in os.listdir(dirname + '/' + subdir):
+                if fn.endswith('.h'):
+                    files.append(fn)
+        for fn in files:
+            install_header(lib, targetdir, dirname + '/' + subdir, fn)
+
 def compile(lib, modname, path, debug, tgtrls = '*CURRENT'):
     os400.sndpgmmsg('Compiling %s %s' % (path, debug))
     if debug:
@@ -201,10 +239,7 @@ def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', li
         if skip(dirname1, fn):
             os400.sndpgmmsg('Skipped %s' % fn)
             continue
-        modname = fn[:-2].upper()
-        if modname.startswith('_'):
-            modname = 'Z' + modname[1:]
-        modname = modname.replace('-','').replace('_','')[:10]
+        modname = mangledb(fn[:-2].upper())
         if dirname1 in PREFIX and not modname.startswith(PREFIX[dirname1]):
             modname = (PREFIX[dirname1] + modname)[:10]
         if modname.lower() not in modules:
@@ -251,6 +286,8 @@ def main(command, *args):
         create_allpgm(*args)
     elif command == 'all':
         create_all(*args)
+    elif command == 'headers':
+        install_allheaders(*args)
 
 if __name__ == "__main__":
     main(*sys.argv[1:])
