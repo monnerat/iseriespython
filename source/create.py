@@ -144,9 +144,25 @@ def mangledb(name):
     name = name.replace('-', '').replace('_', '')[:10]
     return name
 
+def needlib(lib):
+    if not os.path.isdir('/QSYS.LIB/%s.LIB' % (lib)):
+        os400.sndpgmmsg('Creating library %s' % (lib))
+        cmd = "CRTLIB LIB(%s) TYPE(*PROD) TEXT('Python language')" % (lib)
+        if os.system(cmd):
+            os400.sndpgmmsg('*** F A I L E D ***')
+
 def install_header(lib, dstpath, srcpath, file):
+    needlib(lib)
+    if not os.path.isdir('/QSYS.LIB/%s.LIB/H.FILE' % (lib)):
+        os400.sndpgmmsg('Creating DB source file %s/H' % (lib))
+        cmd = "CRTSRCPF FILE(%s/H) RCDLEN(240) TEXT('Python C header files')" %\
+	      (lib)
+        if os.system(cmd):
+            os400.sndpgmmsg('*** F A I L E D ***')
+    if not os.path.isdir('%s/include' % (dstpath)):
+        os.makedirs('%s/include' % (dstpath))
     os400.sndpgmmsg('Installing header file %s/%s' % (srcpath, file))
-    shutil.copy2(srcpath + "/" + file, dstpath + "/include/" + file)
+    shutil.copy2('%s/%s' % (srcpath, file), '%s/include/' % (dstpath))
     mbrname = mangledb(os.path.splitext(file)[0]).upper()
     ofile = open("/QSYS.LIB/%s.LIB/H.FILE/%s.MBR" % (lib, mbrname), 'w')
     with open(srcpath + "/" + file, 'r') as ifile:
@@ -169,6 +185,7 @@ def install_allheaders(dirname, targetdir = None, lib = DSTLIB):
             install_header(lib, targetdir, dirname + '/' + subdir, fn)
 
 def compile(lib, modname, path, debug, tgtrls = '*CURRENT'):
+    needlib(lib)
     os400.sndpgmmsg('Compiling %s %s' % (path, debug))
     if debug:
         cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
@@ -186,6 +203,7 @@ def compile(lib, modname, path, debug, tgtrls = '*CURRENT'):
         os400.sndpgmmsg('*** F A I L E D ***')
 
 def create_srvpgm(srvpgm, lib = DSTLIB, tgtrls = '*CURRENT'):
+    needlib(lib)
     os400.sndpgmmsg('Creating *srvpgm %s/%s' % (lib, srvpgm))
     srvpgm = srvpgm.lower()
     if srvpgm not in SPGMDICT:
@@ -203,6 +221,7 @@ def create_srvpgm(srvpgm, lib = DSTLIB, tgtrls = '*CURRENT'):
         os400.sndpgmmsg('*** F A I L E D ***')
 
 def create_pgm(lib = DSTLIB, tgtrls = '*CURRENT'):
+    needlib(lib)
     os400.sndpgmmsg('Creating *pgm %s/PYTHON' % lib)
     cmd = "CRTPGM PGM(%s/PYTHON) BNDSRVPGM(%s/PYTHON) " % (lib, lib) + \
           "ALWLIBUPD(*YES) USRPRF(*OWNER) TGTRLS(%s) " % tgtrls + \
