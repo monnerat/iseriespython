@@ -11,6 +11,7 @@ from datetime import date, timedelta
 
 DSTLIB = 'PYTHON27'
 DEBUG = False
+ALWAYS = True
 
 INCLUDE = ['/python27/source/include','/python27/source/python',
           '/python27/source/as400','/python27/source/modules/expat',
@@ -145,35 +146,46 @@ def mangledb(name):
     return name
 
 def needlib(lib):
-    if not os.path.isdir('/QSYS.LIB/%s.LIB' % (lib)):
-        os400.sndpgmmsg('Creating library %s' % (lib))
-        cmd = "CRTLIB LIB(%s) TYPE(*PROD) TEXT('Python language')" % (lib)
+    if not os.path.isdir('/QSYS.LIB/%s.LIB' % lib):
+        os400.sndpgmmsg('Creating library %s' % lib)
+        cmd = "CRTLIB LIB(%s) TYPE(*PROD) TEXT('Python language')" % lib
         if os.system(cmd):
             os400.sndpgmmsg('*** F A I L E D ***')
 
-def install_header(lib, dstpath, srcpath, file):
+def should_create(target, dependencies = []):
+    if not os.path.exists(target):
+        return True
+    timestamp = os.path.getmtime(target)
+    return filter(lambda x: os.path.getmtime(x) > timestamp, dependencies) 
+
+def install_header(lib, dstpath, srcpath, file, always):
     needlib(lib)
-    if not os.path.isdir('/QSYS.LIB/%s.LIB/H.FILE' % (lib)):
-        os400.sndpgmmsg('Creating DB source file %s/H' % (lib))
+    if not os.path.isdir('/QSYS.LIB/%s.LIB/H.FILE' % lib):
+        os400.sndpgmmsg('Creating DB source file %s/H' % lib)
         cmd = "CRTSRCPF FILE(%s/H) RCDLEN(240) TEXT('Python C header files')" %\
 	      (lib)
         if os.system(cmd):
             os400.sndpgmmsg('*** F A I L E D ***')
-    if not os.path.isdir('%s/include' % (dstpath)):
-        os.makedirs('%s/include' % (dstpath))
+    if not os.path.isdir('%s/include' % dstpath):
+        os.makedirs('%s/include' % dstpath)
     os400.sndpgmmsg('Installing header file %s/%s' % (srcpath, file))
-    shutil.copy2('%s/%s' % (srcpath, file), '%s/include/' % (dstpath))
+    if always or \
+      should_create('%s/include/' % dstpath, ['%s/%s' % (srcpath, file)]):
+        shutil.copy2('%s/%s' % (srcpath, file), '%s/include/' % dstpath)
     mbrname = mangledb(os.path.splitext(file)[0]).upper()
-    ofile = open("/QSYS.LIB/%s.LIB/H.FILE/%s.MBR" % (lib, mbrname), 'w')
-    with open(srcpath + "/" + file, 'r') as ifile:
-        for line in ifile:
-            m = INCLUDE_RE.match(line)
-            if (m):
-                line = m.group(1) + mangledb(m.group(2)) + m.group(3) + '\n'
-            ofile.write(line)
-    ofile.close()
+    mbrpath = '/QSYS.LIB/%s.LIB/H.FILE/%s.MBR' % (lib, mbrname)
+    if always or \
+      should_create(mbrpath, ['%s/%s' % (srcpath, file)]):
+        ofile = open(mbrpath, 'w')
+        with open('%s/%s' % (srcpath, file), 'r') as ifile:
+            for line in ifile:
+                m = INCLUDE_RE.match(line)
+                if (m):
+                    line = m.group(1) + mangledb(m.group(2)) + m.group(3) + '\n'
+                ofile.write(line)
+        ofile.close()
 
-def install_allheaders(dirname, targetdir = None, lib = DSTLIB):
+def install_allhdrs(dirname, targetdir = None, lib = DSTLIB, always = ALWAYS):
     if not targetdir:
         targetdir = dirname
     for subdir, files in HDRS:
@@ -182,52 +194,63 @@ def install_allheaders(dirname, targetdir = None, lib = DSTLIB):
                 if fn.endswith('.h'):
                     files.append(fn)
         for fn in files:
-            install_header(lib, targetdir, dirname + '/' + subdir, fn)
+            install_header(lib, targetdir, dirname + '/' + subdir, fn, always)
 
-def compile(lib, modname, path, debug, tgtrls = '*CURRENT'):
+def compile(lib, modname, path, debug, tgtrls = '*CURRENT', always = ALWAYS):
     needlib(lib)
-    os400.sndpgmmsg('Compiling %s %s' % (path, debug))
-    if debug:
-        cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
-              "SRCSTMF('%s') OUTPUT(*PRINT) OPTIMIZE(10) " % path + \
-              "INLINE(*OFF) DBGVIEW(*ALL) SYSIFCOPT(*IFS64IO) " + \
-              "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
-              "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
-    else:
-        cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
-              "SRCSTMF('%s') OPTIMIZE(40) " % path + \
-              "INLINE(*ON *AUTO) DBGVIEW(*NONE) SYSIFCOPT(*IFS64IO) " + \
-              "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
-              "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
-    if os.system(cmd):
-        os400.sndpgmmsg('*** F A I L E D ***')
+    if always or should_create('/QSYS.LIB/%s.LIB/%s.MODULE' % (lib, modname), \
+      [path]):
+        os400.sndpgmmsg('Compiling %s %s' % (path, debug))
+        if debug:
+            cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
+                  "SRCSTMF('%s') OUTPUT(*PRINT) OPTIMIZE(10) " % path + \
+                  "INLINE(*OFF) DBGVIEW(*ALL) SYSIFCOPT(*IFS64IO) " + \
+                  "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
+                  "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
+        else:
+            cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
+                  "SRCSTMF('%s') OPTIMIZE(40) " % path + \
+                  "INLINE(*ON *AUTO) DBGVIEW(*NONE) SYSIFCOPT(*IFS64IO) " + \
+                  "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
+                  "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
+        if os.system(cmd):
+            os400.sndpgmmsg('*** F A I L E D ***')
 
-def create_srvpgm(srvpgm, lib = DSTLIB, tgtrls = '*CURRENT'):
+def create_srvpgm(srvpgm, lib = DSTLIB, tgtrls = '*CURRENT', always = ALWAYS):
     needlib(lib)
-    os400.sndpgmmsg('Creating *srvpgm %s/%s' % (lib, srvpgm))
     srvpgm = srvpgm.lower()
     if srvpgm not in SPGMDICT:
-        os400.sndpgmmsg('*** F A I L E D ***   srvpgm  %s not valid' % srvpgm)
+        os400.sndpgmmsg('*** F A I L E D ***   srvpgm %s not valid' % \
+                        srvpgm)
     bnds, modules = SPGMDICT[srvpgm]
-    cmd = "CRTSRVPGM SRVPGM(%s/%s) MODULE(" % (lib, srvpgm) + \
-          ' '.join('%s/%s' % (lib,x) for x in modules) + \
-          ") EXPORT(*ALL) TGTRLS(%s) ACTGRP(%s) " % (tgtrls, lib) + \
-          "STGMDL(*TERASPACE) ALWLIBUPD(*YES)"
-    if bnds:
-        cmd += " BNDSRVPGM(" + \
-               ' '.join('%s/%s' % (lib,x) for x in bnds) + \
-               ")"
-    if os.system(cmd):
-        os400.sndpgmmsg('*** F A I L E D ***')
+    if always or \
+      should_create('/QSYS.LIB/%s.LIB/%s.SRVPGM' % (lib, srvpgm), \
+                    ('/QSYS.LIB/%s.LIB/%s.%s' % (lib, x, y) for (x, y) in \
+                     itertools.chain(([x, 'SRVPGM'] for x in bnds), \
+                                     ([x, 'MODULE'] for x in modules)))):
+        os400.sndpgmmsg('Creating *srvpgm %s/%s' % (lib, srvpgm.upper()))
+        cmd = "CRTSRVPGM SRVPGM(%s/%s) MODULE(" % (lib, srvpgm) + \
+              ' '.join('%s/%s' % (lib, x) for x in modules) + \
+              ") EXPORT(*ALL) TGTRLS(%s) ACTGRP(%s) " % (tgtrls, lib) + \
+              "STGMDL(*TERASPACE) ALWLIBUPD(*YES)"
+        if bnds:
+            cmd += " BNDSRVPGM(" + \
+                   ' '.join('%s/%s' % (lib, x) for x in bnds) + \
+                   ")"
+        if os.system(cmd):
+            os400.sndpgmmsg('*** F A I L E D ***')
 
-def create_pgm(lib = DSTLIB, tgtrls = '*CURRENT'):
+def create_pgm(lib = DSTLIB, tgtrls = '*CURRENT', always = ALWAYS):
     needlib(lib)
-    os400.sndpgmmsg('Creating *pgm %s/PYTHON' % lib)
-    cmd = "CRTPGM PGM(%s/PYTHON) BNDSRVPGM(%s/PYTHON) " % (lib, lib) + \
-          "ALWLIBUPD(*YES) USRPRF(*OWNER) TGTRLS(%s) " % tgtrls + \
-          "ACTGRP(%s) STGMDL(*TERASPACE)" % lib
-    if os.system(cmd):
-        os400.sndpgmmsg('*** F A I L E D ***')
+    if always or should_create('/QSYS.LIB/%s.LIB/PYTHON.PGM' % lib, \
+      ['/QSYS.LIB/%s.LIB/PYTHON.MODULE' % lib, \
+       '/QSYS.LIB/%s.LIB/PYTHON.SRVPGM' % lib]):
+        os400.sndpgmmsg('Creating *pgm %s/PYTHON' % lib)
+        cmd = "CRTPGM PGM(%s/PYTHON) BNDSRVPGM(%s/PYTHON) " % (lib, lib) + \
+              "ALWLIBUPD(*YES) USRPRF(*OWNER) TGTRLS(%s) " % tgtrls + \
+              "ACTGRP(%s) STGMDL(*TERASPACE)" % lib
+        if os.system(cmd):
+            os400.sndpgmmsg('*** F A I L E D ***')
 
 def skip(dir, fn):
     files = SKIPFILES.get(dir)
@@ -239,7 +262,7 @@ def skip(dir, fn):
                 return True
     return False
 
-def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
+def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB, always = ALWAYS):
     cmd = "ADDENVVAR ENVVAR(INCLUDE) REPLACE(*YES) VALUE('" + \
           ':'.join(INCLUDE) + "')"
     os.system(cmd)
@@ -263,33 +286,33 @@ def create_module(dirname, filename = '', debug = DEBUG, tgtrls = '*CURRENT', li
             modname = (PREFIX[dirname1] + modname)[:10]
         if modname.lower() not in modules:
             continue
-        compile(lib, modname, os.path.join(dirname, fn), debug, tgtrls)
+        compile(lib, modname, os.path.join(dirname, fn), debug, tgtrls, always)
 
-def create_all(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
-    create_allmod(dirname, debug, tgtrls, lib)
-    create_allpgm(tgtrls, lib)
+def create_all(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB, always = ALWAYS):
+    create_allmod(dirname, debug, tgtrls, lib, always)
+    create_allpgm(tgtrls, lib, always)
 
-def create_allmod(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB):
-    create_module(os.path.join(dirname, 'python'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'parser'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'objects'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules/expat'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules/zlib'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules/_io'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules/_multiprocessing'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'sqlite'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'modules/_sqlite'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'as400'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'pycrypto'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'bz2'), '', debug, tgtrls, lib)
-    create_module(os.path.join(dirname, 'ibm_db'), '', debug, tgtrls, lib)
+def create_allmod(dirname, debug = DEBUG, tgtrls = '*CURRENT', lib = DSTLIB, always = ALWAYS):
+    create_module(os.path.join(dirname, 'python'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'parser'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'objects'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules/expat'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules/zlib'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules/_io'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules/_multiprocessing'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'sqlite'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'modules/_sqlite'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'as400'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'pycrypto'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'bz2'), '', debug, tgtrls, lib, always)
+    create_module(os.path.join(dirname, 'ibm_db'), '', debug, tgtrls, lib, always)
 
-def create_allpgm(tgtrls = '*CURRENT', lib = DSTLIB):
+def create_allpgm(tgtrls = '*CURRENT', lib = DSTLIB, always = ALWAYS):
     # create all srvpgm
     for srvpgm, parms in SPGM:
-        create_srvpgm(srvpgm, lib, tgtrls)
-    create_pgm(lib, tgtrls)
+        create_srvpgm(srvpgm, lib, tgtrls, always)
+    create_pgm(lib, tgtrls, always)
 
 
 def main(command, *args):
@@ -306,7 +329,7 @@ def main(command, *args):
     elif command == 'all':
         create_all(*args)
     elif command == 'headers':
-        install_allheaders(*args)
+        install_allhdrs(*args)
 
 if __name__ == "__main__":
     main(*sys.argv[1:])
