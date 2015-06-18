@@ -3383,7 +3383,7 @@ decode_unicode(struct compiling *c, const char *s, size_t len, int rawmode, cons
                 if (len > PY_SIZE_MAX / 6)
                         return NULL;
 		/* "<C3><A4>" (2 bytes) may become "\U000000E4" (10 bytes), or 1:5
-		   "\Ã¤" (3 bytes) may become "\u005c\U000000E4" (16 bytes), or ~1:6 */
+		   "\ä" (3 bytes) may become "\u005c\U000000E4" (16 bytes), or ~1:6 */
                 u = PyString_FromStringAndSize((char *)NULL, len * 6);
                 if (u == NULL)
                         return NULL;

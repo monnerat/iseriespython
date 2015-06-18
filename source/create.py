@@ -27,7 +27,7 @@ SKIPFILES = {'python':['dynload*','thread*'],
 
 PREFIX = {'zlib':'Z_', 'bz2':'BZ'}
 
-SPGM = [('python'    , ([],['abstract','acceler','asdl','ast','as400misc','bitset',
+SPGM = [('python'    , ([],['abstract','acceler','asdl','ast','as400misc','i5wrappers', 'bitset',
                        'bltinmodul','boolobject','bufferobje','bytearrayo',
                        'bytesmetho','capsule','cellobject','ceval','classobjec',
                        'cobject','codecs','codeobject','compile','complexobj',
@@ -156,7 +156,8 @@ def should_create(target, dependencies = []):
     if not os.path.exists(target):
         return True
     timestamp = os.path.getmtime(target)
-    return filter(lambda x: os.path.getmtime(x) > timestamp, dependencies) 
+    return filter(lambda x: not os.path.exists(x) or \
+                            os.path.getmtime(x) > timestamp, dependencies) 
 
 def install_header(lib, dstpath, srcpath, file, always):
     needlib(lib)
@@ -201,18 +202,14 @@ def compile(lib, modname, path, debug, tgtrls = '*CURRENT', always = ALWAYS):
     if always or should_create('/QSYS.LIB/%s.LIB/%s.MODULE' % (lib, modname), \
       [path]):
         os400.sndpgmmsg('Compiling %s %s' % (path, debug))
+        cmd = 'OPTIMIZE(40) INLINE(*ON *AUTO) DBGVIEW(*NONE)'
         if debug:
-            cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
-                  "SRCSTMF('%s') OUTPUT(*PRINT) OPTIMIZE(10) " % path + \
-                  "INLINE(*OFF) DBGVIEW(*ALL) SYSIFCOPT(*IFS64IO) " + \
-                  "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
-                  "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
-        else:
-            cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
-                  "SRCSTMF('%s') OPTIMIZE(40) " % path + \
-                  "INLINE(*ON *AUTO) DBGVIEW(*NONE) SYSIFCOPT(*IFS64IO) " + \
-                  "LOCALETYPE(*LOCALEUTF) FLAG(10) TERASPACE(*YES *TSIFC) " + \
-                  "STGMDL(*TERASPACE) TGTRLS(%s) DTAMDL(*LLP64)" % tgtrls
+            cmd = 'OUTPUT(*PRINT) INLINE(*OFF) OPTIMIZE(10) DBGVIEW(*ALL)'
+        cmd = "CRTCMOD MODULE(%s/%s) " % (lib, modname) + \
+              "SRCSTMF('%s') %s " % (path, cmd) + \
+              "SYSIFCOPT(*IFS64IO) LOCALETYPE(*LOCALEUTF) FLAG(10) " + \
+              "TERASPACE(*YES *TSIFC) STGMDL(*TERASPACE) DTAMDL(*LLP64) " + \
+              "ENUM(*INT) TGTRLS(%s)" % tgtrls
         if os.system(cmd):
             os400.sndpgmmsg('*** F A I L E D ***')
 

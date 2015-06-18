@@ -106,7 +106,7 @@ static Py_ssize_t long_lived_pending = 0;
    thusly: "each full garbage collection is more and more costly as the
    number of objects grows, but we do fewer and fewer of them").
 
-   This heuristic was suggested by Martin von LÃ¶wis on python-dev in
+   This heuristic was suggested by Martin von Löwis on python-dev in
    June 2008. His original analysis and proposal can be found at:
     http://mail.python.org/pipermail/python-dev/2008-June/080579.html
 */
